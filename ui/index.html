@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Steam Plant HMI - Digital Twin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:'Courier New',monospace;font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+button{cursor:pointer;font-family:inherit;font-size:11px}
+#header{background:#020617;border-bottom:1px solid #1e293b;padding:6px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.brand{font-size:14px;font-weight:bold;color:#38bdf8;letter-spacing:.05em}
+.sub{font-size:10px;color:#475569}
+.tabs{margin-left:auto;display:flex;gap:2px}
+.tab{padding:5px 14px;border:none;background:#0a0f1e;color:#64748b;border-bottom:2px solid transparent;transition:.15s}
+.tab.active{background:#1d4ed8;color:#fff;border-bottom-color:#3b82f6}
+#alarmStrip{padding:5px 10px;border-bottom:1px solid #1e293b;flex-shrink:0;display:flex;flex-wrap:wrap;gap:4px;min-height:30px;align-items:center}
+.aok{background:#052e16;border:1px solid #166534;border-radius:4px;padding:2px 8px;font-size:11px;color:#4ade80}
+.acrit{background:#7f1d1d;border:1px solid #dc2626;border-radius:4px;padding:2px 8px;font-size:11px;color:#fca5a5}
+.awarn{background:#451a03;border:1px solid #d97706;border-radius:4px;padding:2px 8px;font-size:11px;color:#fde68a}
+#content{flex:1;overflow:hidden}
+.tabpanel{display:none;height:100%}
+.tabpanel.active{display:flex}
+#hmiPanel{flex:1;display:grid;grid-template-columns:205px 1fr 195px;gap:6px;padding:6px;height:100%}
+.panel{background:#0a0f1e;border:1px solid #1e293b;border-radius:6px;padding:8px;overflow-y:auto}
+#centre{display:flex;flex-direction:column;gap:6px;min-width:0}
+#diagram{background:#0a0f1e;border:1px solid #1e293b;border-radius:6px;overflow:hidden}
+#diagram svg{display:block;width:100%}
+#sparklines{display:flex;gap:6px;flex-wrap:wrap}
+.spark-wrap{display:flex;flex-direction:column}
+.spark-lbl{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:2px}
+#terminal{background:#020617;border:1px solid #1e293b;border-radius:6px;padding:6px;max-height:140px;overflow-y:auto}
+.evt{display:flex;gap:6px;padding:1px 0;border-bottom:1px solid #0f172a;font-size:10px}
+.evt .ts{color:#475569;flex-shrink:0}
+.evt .cat{flex-shrink:0;width:64px}
+.sec{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #1e293b;padding-bottom:2px;margin-bottom:5px;margin-top:8px}
+.sec:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #1e293b;font-size:11px}
+.row .lbl{color:#64748b}
+.row .val{font-weight:bold}
+.btngrp{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+button.ctrl{padding:4px 10px;border-radius:4px;border:1px solid #334155;background:#0f172a;color:#94a3b8}
+button.ctrl.on{background:#1e3a5f;border-color:#3b82f6;color:#93c5fd}
+button.ctrl.crit{background:#7f1d1d;border-color:#dc2626;color:#fca5a5}
+button.ctrl.ok{background:#1e3a1e;border-color:#4ade80;color:#4ade80}
+button.ctrl.mode-auto{background:#166534;border-color:#4ade80;color:#4ade80}
+button.ctrl.mode-man{background:#92400e;border-color:#fbbf24;color:#fbbf24}
+.slider-row{margin-bottom:5px}
+.slider-row label{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:2px}
+input[type=range]{width:100%}
+.led{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1e293b;margin-right:5px}
+.led.on{background:#4ade80;box-shadow:0 0 5px #4ade80}
+.led.crit{background:#ef4444;box-shadow:0 0 5px #ef4444}
+#histPanel{padding:10px;flex-direction:column;gap:8px;overflow:hidden}
+#histPanel table{width:100%;border-collapse:collapse;font-size:11px}
+#histPanel th{padding:3px 6px;color:#64748b;border-bottom:1px solid #1e293b;text-align:left;white-space:nowrap;font-size:10px}
+#histPanel td{padding:2px 6px;border-bottom:1px solid #0f172a;white-space:nowrap}
+.hist-tabs{display:flex;gap:4px;flex-shrink:0}
+.hist-tab{padding:3px 10px;font-size:11px;border:none;border-radius:4px;background:#0a0f1e;color:#64748b}
+.hist-tab.active{background:#1d4ed8;color:#fff}
+.tbl-wrap{flex:1;overflow:auto;min-height:0}
+#aiPanel{padding:10px;flex-direction:column;gap:8px;overflow:hidden}
+#chatMsgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;min-height:0}
+.msg{max-width:85%;padding:6px 10px;border-radius:6px;font-size:12px;line-height:1.5}
+.msg.user{align-self:flex-end;background:#1d4ed8;border:1px solid #3b82f6}
+.msg.ai{align-self:flex-start;background:#0a0f1e;border:1px solid #1e293b}
+.msg .who{font-size:10px;color:#64748b;margin-bottom:2px}
+.chat-input{display:flex;gap:6px;flex-shrink:0}
+.chat-input input{flex:1;background:#020617;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:6px 10px;font-family:inherit;font-size:12px;outline:none}
+.chat-input button{padding:6px 14px;background:#2563eb;border:none;border-radius:4px;color:#fff;font-size:12px}
+.quickbtns{display:flex;flex-wrap:wrap;gap:4px;flex-shrink:0}
+.quickbtns button{font-size:10px;padding:2px 6px;background:#0a0f1e;border:1px solid #334155;color:#94a3b8;border-radius:3px}
+#erpPanel{padding:10px;gap:10px;overflow:auto;flex-wrap:wrap;align-items:flex-start}
+.erp-card{background:#0a0f1e;border:1px solid #1e293b;border-radius:6px;padding:12px;flex:1;min-width:300px}
+.erp-card h3{font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+pre{font-size:11px;color:#94a3b8;white-space:pre-wrap;word-break:break-all}
+.tag-row{display:flex;justify-content:space-between;font-size:11px;border-bottom:1px solid #1e293b;padding:3px 0}
+.tag-row .topic{color:#64748b}
+.tag-row .tval{color:#38bdf8}
+@keyframes flowR{to{stroke-dashoffset:-24}}
+@keyframes flowL{to{stroke-dashoffset:24}}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="brand">STEAM PLANT HMI v2</div>
+  <div class="sub">Digital Twin - UMA206</div>
+  <div class="tabs">
+    <button class="tab active" id="tab-btn-hmi" onclick="showTab('hmi',this)">HMI</button>
+    <button class="tab" id="tab-btn-historian" onclick="showTab('historian',this)">Historian</button>
+    <button class="tab" id="tab-btn-ai" onclick="showTab('ai',this)">AI Agent</button>
+    <button class="tab" id="tab-btn-erp" onclick="showTab('erp',this)">ERP/Edge</button>
+  </div>
+  <span id="tick" style="font-size:10px;color:#334155">tick 0</span>
+</div>
+
+<div id="alarmStrip"><div class="aok">No active alarms - plant normal</div></div>
+
+<div id="content">
+
+<div id="tab-hmi" class="tabpanel active">
+<div id="hmiPanel">
+
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span class="led crit" id="wsLed"></span>
+      <span id="wsStatus" style="font-size:10px;color:#ef4444">Connecting...</span>
+    </div>
+
+    <div class="sec">Operating Mode</div>
+    <div class="btngrp">
+      <button class="ctrl mode-auto" id="btnAuto" onclick="sendCmd({type:'control',action:'setMode',value:'AUTO'})">AUTO</button>
+      <button class="ctrl" id="btnManual" onclick="sendCmd({type:'control',action:'setMode',value:'MANUAL'})">MANUAL</button>
+    </div>
+
+    <div class="sec">Equipment Controls</div>
+    <div class="btngrp">
+      <button class="ctrl" id="btnPump" onclick="togglePump()">Pump OFF</button>
+      <button class="ctrl" id="btnValve" onclick="toggleValve()">Valve SHUT</button>
+    </div>
+    <div class="slider-row">
+      <label><span>Heater Power</span><span id="lblHeater" style="color:#f97316">50%</span></label>
+      <input type="range" id="slHeater" min="0" max="100" value="50" oninput="onHeater(this.value)">
+    </div>
+    <div class="slider-row">
+      <label><span>Electrical Load</span><span id="lblLoad" style="color:#fbbf24">30%</span></label>
+      <input type="range" id="slLoad" min="0" max="100" value="30" oninput="onLoad(this.value)">
+    </div>
+
+    <div class="sec">Fault Injection (Wk8)</div>
+    <div class="btngrp">
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'pump_failure'})">Pump Fail</button>
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'heater_failure'})">Heater Fail</button>
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'engine_jam'})">Engine Jam</button>
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'valve_stuck_open'})">Valve Open</button>
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'valve_stuck_closed'})">Valve Shut</button>
+      <button class="ctrl crit" onclick="sendCmd({type:'fault',faultId:'filter_blocked'})">Filter Block</button>
+    </div>
+
+    <div class="sec">Recovery</div>
+    <div class="btngrp">
+      <button class="ctrl ok" onclick="sendCmd({type:'clearFaults'})">Clear Faults</button>
+      <button class="ctrl" onclick="sendCmd({type:'reset'})">Reset Plant</button>
+    </div>
+  </div>
+
+  <div id="centre">
+    <div id="diagram">
+      <svg id="plantSvg" viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40,0L0,0 0,40" fill="none" stroke="#0f172a" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="1000" height="520" fill="url(#grid)"/>
+
+        <!-- Pipe bases -->
+        <path d="M110,315 H175" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+        <path d="M233,324 H300" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+        <path d="M358,324 H420 V290 H430" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+        <path d="M485,160 V116" fill="none" stroke="#334155" stroke-width="5" stroke-linecap="round"/>
+        <path d="M540,200 H610" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+        <path d="M662,256 H730" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+        <path d="M785,280 V380" fill="none" stroke="#334155" stroke-width="5" stroke-linecap="round"/>
+        <path d="M660,415 H70 V350" fill="none" stroke="#334155" stroke-width="5" stroke-linecap="round"/>
+        <path d="M840,240 H860" fill="none" stroke="#334155" stroke-width="4" stroke-dasharray="4 4"/>
+
+        <!-- Animated flow overlays -->
+        <path id="pf_ft_pump"    d="M110,315 H175"          fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 14" style="display:none"/>
+        <path id="pf_pump_filt"  d="M233,324 H300"          fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 14" style="display:none"/>
+        <path id="pf_filt_boiler"d="M358,324 H420 V290 H430"fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 14" style="display:none"/>
+        <path id="pf_boil_prv"   d="M485,160 V116"          fill="none" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 10"  style="display:none"/>
+        <path id="pf_boil_sv"    d="M540,200 H610"          fill="none" stroke="#e2e8f0" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 14" style="display:none"/>
+        <path id="pf_sv_eng"     d="M662,256 H730"          fill="none" stroke="#e2e8f0" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 14" style="display:none"/>
+        <path id="pf_eng_cond"   d="M785,280 V380"          fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 10"  style="display:none"/>
+        <path id="pf_cond_ft"    d="M660,415 H70 V350"      fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 10"  style="display:none"/>
+        <path id="pf_eng_bat"    d="M840,240 H860"          fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="4 4" style="display:none"/>
+
+        <!-- Feed Tank -->
+        <rect x="30" y="220" width="80" height="130" rx="6" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+        <rect id="ft_fill" x="33" y="310" width="74" height="37" rx="3" fill="#3b82f6" opacity="0.65"/>
+        <text id="ft_lvl" x="70" y="285" text-anchor="middle" fill="white" font-size="13" font-weight="bold">80%</text>
+        <text x="70" y="364" text-anchor="middle" fill="#94a3b8" font-size="10">Feed Tank</text>
+
+        <!-- Pump -->
+        <circle id="pump_ring" cx="204" cy="324" r="27" fill="#1e293b" stroke="#475569" stroke-width="2.5"/>
+        <line id="pump_b0" x1="204" y1="324" x2="204" y2="301" stroke="#475569" stroke-width="2"/>
+        <line id="pump_b1" x1="204" y1="324" x2="221" y2="332" stroke="#475569" stroke-width="2"/>
+        <line id="pump_b2" x1="204" y1="324" x2="221" y2="316" stroke="#475569" stroke-width="2"/>
+        <line id="pump_b3" x1="204" y1="324" x2="204" y2="347" stroke="#475569" stroke-width="2"/>
+        <line id="pump_b4" x1="204" y1="324" x2="187" y2="332" stroke="#475569" stroke-width="2"/>
+        <line id="pump_b5" x1="204" y1="324" x2="187" y2="316" stroke="#475569" stroke-width="2"/>
+        <circle id="pump_hub" cx="204" cy="324" r="4" fill="#475569"/>
+        <text x="204" y="364" text-anchor="middle" fill="#94a3b8" font-size="10">Pump</text>
+
+        <!-- Filter -->
+        <rect id="filt_body" x="300" y="295" width="58" height="58" rx="5" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+        <line id="fl1" x1="308" y1="309" x2="350" y2="309" stroke="#475569" stroke-width="1" opacity="0.6"/>
+        <line id="fl2" x1="308" y1="324" x2="350" y2="324" stroke="#475569" stroke-width="1" opacity="0.6"/>
+        <line id="fl3" x1="308" y1="339" x2="350" y2="339" stroke="#475569" stroke-width="1" opacity="0.6"/>
+        <text id="filt_pct" x="329" y="328" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="bold">100%</text>
+        <text x="329" y="367" text-anchor="middle" fill="#94a3b8" font-size="10">Filter</text>
+
+        <!-- Boiler -->
+        <ellipse cx="485" cy="170" rx="55" ry="14" fill="#1e293b" stroke="#475569" stroke-width="2.5"/>
+        <rect id="boil_body" x="430" y="170" width="110" height="160" rx="8" fill="#1e293b" stroke="#475569" stroke-width="2.5"/>
+        <rect id="boil_fill" x="434" y="295" width="102" height="33" rx="3" fill="#3b82f6" opacity="0.5"/>
+        <path id="boil_heater" d="M442,312 Q485,300 528,312" fill="none" stroke="#f97316" stroke-width="2.5"/>
+        <text id="boil_pres" x="485" y="250" text-anchor="middle" fill="#38bdf8" font-size="16" font-weight="bold">0.0</text>
+        <text x="485" y="266" text-anchor="middle" fill="#64748b" font-size="10">bar</text>
+        <text id="boil_lvl" x="485" y="283" text-anchor="middle" fill="#94a3b8" font-size="10">60%</text>
+        <text x="485" y="344" text-anchor="middle" fill="#94a3b8" font-size="10">Boiler</text>
+        <circle id="prv_dot" cx="528" cy="182" r="5" fill="#ef4444" opacity="0"/>
+
+        <!-- Relief Valve -->
+        <polygon id="prv_body" points="488,80 506,116 470,116" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+        <text x="488" y="74" text-anchor="middle" fill="#94a3b8" font-size="9">PRV</text>
+
+        <!-- Steam Valve -->
+        <circle id="sv_ring" cx="636" cy="256" r="26" fill="#1e293b" stroke="#475569" stroke-width="2.5"/>
+        <line id="sv_disc" x1="610" y1="256" x2="662" y2="256" stroke="#475569" stroke-width="3"/>
+        <text x="636" y="296" text-anchor="middle" fill="#94a3b8" font-size="10">S.Valve</text>
+        <text id="sv_stuck" x="636" y="248" text-anchor="middle" fill="#ef4444" font-size="9"></text>
+
+        <!-- Steam Engine -->
+        <rect id="eng_body" x="730" y="200" width="110" height="80" rx="6" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+        <line id="eng_f0" x1="785" y1="240" x2="785" y2="213" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f1" x1="785" y1="240" x2="806" y2="219" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f2" x1="785" y1="240" x2="812" y2="240" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f3" x1="785" y1="240" x2="806" y2="261" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f4" x1="785" y1="240" x2="785" y2="267" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f5" x1="785" y1="240" x2="764" y2="261" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f6" x1="785" y1="240" x2="758" y2="240" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <line id="eng_f7" x1="785" y1="240" x2="764" y2="219" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+        <circle id="eng_hub" cx="785" cy="240" r="5" fill="#475569"/>
+        <text id="eng_rpm" x="785" y="195" text-anchor="middle" fill="#475569" font-size="10">0 RPM</text>
+        <text x="785" y="294" text-anchor="middle" fill="#94a3b8" font-size="10">Steam Engine</text>
+
+        <!-- Condenser -->
+        <rect x="700" y="380" width="80" height="70" rx="5" fill="#1e293b" stroke="#7dd3fc" stroke-width="2"/>
+        <line x1="706" y1="394" x2="774" y2="394" stroke="#7dd3fc" stroke-width="1" opacity="0.5"/>
+        <line x1="706" y1="408" x2="774" y2="408" stroke="#7dd3fc" stroke-width="1" opacity="0.5"/>
+        <line x1="706" y1="422" x2="774" y2="422" stroke="#7dd3fc" stroke-width="1" opacity="0.5"/>
+        <text x="740" y="437" text-anchor="middle" fill="#94a3b8" font-size="10">Condenser</text>
+
+        <!-- Battery -->
+        <rect x="861" y="183" width="16" height="8" rx="2" fill="#475569"/>
+        <rect id="bat_body" x="860" y="190" width="60" height="110" rx="4" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+        <rect id="bat_fill" x="863" y="256" width="54" height="41" rx="2" fill="#4ade80" opacity="0.7"/>
+        <text id="bat_pct" x="890" y="250" text-anchor="middle" fill="white" font-size="13" font-weight="bold">70%</text>
+        <text x="890" y="314" text-anchor="middle" fill="#94a3b8" font-size="10">Battery</text>
+
+        <!-- Labels -->
+        <text id="lbl_flow" x="242" y="312" text-anchor="middle" fill="#3b82f6" font-size="9" opacity="0">0 L/min</text>
+        <text id="lbl_kw"   x="870" y="233" text-anchor="middle" fill="#fbbf24" font-size="9" opacity="0">0.00 kW</text>
+
+        <!-- Mode badge -->
+        <rect id="modeBadgeBg" x="8" y="8" width="58" height="20" rx="4" fill="#166534"/>
+        <text id="modeBadge" x="37" y="22" text-anchor="middle" fill="white" font-size="11" font-weight="bold">AUTO</text>
+        <rect id="alarmBadgeBg" x="934" y="8" width="58" height="20" rx="4" fill="#7f1d1d" opacity="0"/>
+        <text id="alarmBadgeTxt" x="963" y="22" text-anchor="middle" fill="#fca5a5" font-size="11" opacity="0">0 alarms</text>
+      </svg>
+    </div>
+
+    <div id="sparklines">
+      <div class="spark-wrap"><svg id="sp_pressure" width="220" height="60" style="background:#0f172a;border-radius:4px;display:block"></svg><div class="spark-lbl"><span>Pressure</span><span id="sv_pressure" style="color:#38bdf8">-- bar</span></div></div>
+      <div class="spark-wrap"><svg id="sp_level"    width="220" height="60" style="background:#0f172a;border-radius:4px;display:block"></svg><div class="spark-lbl"><span>Boiler Level</span><span id="sv_level" style="color:#3b82f6">-- %</span></div></div>
+      <div class="spark-wrap"><svg id="sp_rpm"      width="220" height="60" style="background:#0f172a;border-radius:4px;display:block"></svg><div class="spark-lbl"><span>RPM</span><span id="sv_rpm" style="color:#4ade80">--</span></div></div>
+      <div class="spark-wrap"><svg id="sp_filter"   width="220" height="60" style="background:#0f172a;border-radius:4px;display:block"></svg><div class="spark-lbl"><span>Filter</span><span id="sv_filter" style="color:#f59e0b">-- %</span></div></div>
+    </div>
+
+    <div id="terminal"><div style="font-size:10px;color:#334155;margin-bottom:4px">EVENT LOG</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="sec">Boiler</div>
+    <div class="row"><span class="lbl">Pressure</span><span class="val" id="s_pressure">--</span></div>
+    <div class="row"><span class="lbl">Temperature</span><span class="val" id="s_temp">--</span></div>
+    <div class="row"><span class="lbl">Water Level</span><span class="val" id="s_level">--</span></div>
+    <div class="row"><span class="lbl">Heater</span><span class="val" id="s_heater">--</span></div>
+    <div class="row"><span class="lbl">Relief Valve</span><span class="val" id="s_relief">--</span></div>
+    <div class="sec">Feed &amp; Pump</div>
+    <div class="row"><span class="lbl">Feed Tank</span><span class="val" id="s_ft">--</span></div>
+    <div class="row"><span class="lbl">Volume</span><span class="val" id="s_ftvol">--</span></div>
+    <div class="row"><span class="lbl">Pump</span><span class="val" id="s_pump">--</span></div>
+    <div class="row"><span class="lbl">Flow Rate</span><span class="val" id="s_flow">--</span></div>
+    <div class="row"><span class="lbl">Filter Health</span><span class="val" id="s_filt">--</span></div>
+    <div class="sec">Steam &amp; Power</div>
+    <div class="row"><span class="lbl">Steam Valve</span><span class="val" id="s_sv">--</span></div>
+    <div class="row"><span class="lbl">Engine RPM</span><span class="val" id="s_rpm">--</span></div>
+    <div class="row"><span class="lbl">Power Out</span><span class="val" id="s_kw">--</span></div>
+    <div class="row"><span class="lbl">Battery</span><span class="val" id="s_bat">--</span></div>
+    <div class="row"><span class="lbl">Elec. Load</span><span class="val" id="s_load">--</span></div>
+  </div>
+
+</div>
+</div>
+
+<div id="tab-historian" class="tabpanel">
+<div id="histPanel">
+  <div class="hist-tabs">
+    <button class="hist-tab active" onclick="showHistTab('process',this)">Process Data</button>
+    <button class="hist-tab" onclick="showHistTab('alarms',this)">Alarm Log</button>
+    <button onclick="loadHistorian()" style="margin-left:auto;padding:3px 10px;font-size:10px;border:1px solid #334155;background:transparent;color:#64748b;border-radius:4px">Refresh</button>
+    <span id="histCount" style="font-size:10px;color:#475569;align-self:center"></span>
+  </div>
+  <div class="tbl-wrap">
+    <div id="hist-process">
+      <table><thead><tr><th>Time</th><th>P(bar)</th><th>Lvl%</th><th>RPM</th><th>Filter%</th><th>Bat%</th><th>Htr%</th><th>Pump</th><th>Valve</th><th>kW</th></tr></thead><tbody id="histBody"></tbody></table>
+    </div>
+    <div id="hist-alarms" style="display:none">
+      <table><thead><tr><th>Time</th><th>Severity</th><th>Alarm</th><th>Message</th></tr></thead><tbody id="alarmBody"></tbody></table>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="tab-ai" class="tabpanel">
+<div id="aiPanel">
+  <div style="font-size:10px;color:#475569;flex-shrink:0">AI Operator Assistant (Claude) - Week 7 Layer</div>
+  <div class="quickbtns">
+    <button onclick="setQ('What is the plant status?')">Plant status?</button>
+    <button onclick="setQ('Any active alarms?')">Active alarms?</button>
+    <button onclick="setQ('Should I open the steam valve?')">Open steam valve?</button>
+    <button onclick="setQ('How can I increase power output?')">More power?</button>
+  </div>
+  <div id="chatMsgs"><div class="msg ai"><div class="who">AI Assistant</div><div>Online. Ask me about plant status, alarms, or recommended actions.</div></div></div>
+  <div class="chat-input">
+    <input id="chatIn" type="text" placeholder="Ask the AI operator assistant..." onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button onclick="sendChat()">Send</button>
+  </div>
+</div>
+</div>
+
+<div id="tab-erp" class="tabpanel">
+<div id="erpPanel">
+  <div class="erp-card"><h3>ERP Stub - SAP S/4HANA (Week 6)</h3><pre id="erpJson">Loading...</pre></div>
+  <div class="erp-card">
+    <h3>MQTT Tag Snapshot (Week 3)</h3>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Broker: localhost:1883 &bull; Base topic: <span style="color:#38bdf8">steam_boiler/#</span></div>
+    <div id="mqttTags"></div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<script>
+var C = {
+  water:'#3b82f6', steam:'#e2e8f0', cond:'#7dd3fc', elec:'#fbbf24',
+  ok:'#4ade80',    warn:'#f59e0b',  crit:'#ef4444', info:'#38bdf8',
+  dim:'#475569',   heat:'#f97316'
+};
+
+var state = null;
+var ws = null;
+var reconnTimer = null;
+
+function connect() {
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  try {
+    ws = new WebSocket('ws://localhost:8000/ws');
+  } catch(e) {
+    scheduleReconnect();
+    return;
+  }
+  ws.onopen = function() {
+    document.getElementById('wsLed').className = 'led on';
+    document.getElementById('wsStatus').textContent = 'WS connected';
+    document.getElementById('wsStatus').style.color = '#4ade80';
+    if (reconnTimer) { clearTimeout(reconnTimer); reconnTimer = null; }
+  };
+  ws.onclose = function() {
+    document.getElementById('wsLed').className = 'led crit';
+    document.getElementById('wsStatus').textContent = 'Disconnected - reconnecting...';
+    document.getElementById('wsStatus').style.color = '#ef4444';
+    scheduleReconnect();
+  };
+  ws.onerror = function() {};
+  ws.onmessage = function(evt) {
+    try {
+      var msg = JSON.parse(evt.data);
+      if (msg.type === 'state') { state = msg.data; render(state); }
+    } catch(e) {}
+  };
+}
+
+function scheduleReconnect() {
+  if (!reconnTimer) reconnTimer = setTimeout(function(){ reconnTimer=null; connect(); }, 3000);
+}
+
+connect();
+
+function sendCmd(obj) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+function togglePump() {
+  if (state) sendCmd({type:'control',action:'setManualValue',path:'pump.running',value:!state.pump.running});
+}
+function toggleValve() {
+  if (state) sendCmd({type:'control',action:'setManualValue',path:'steam_valve.open',value:!state.steam_valve.open});
+}
+function onHeater(v) {
+  document.getElementById('lblHeater').textContent = v + '%';
+  sendCmd({type:'control',action:'setManualValue',path:'boiler.heater_power',value:+v});
+}
+function onLoad(v) {
+  document.getElementById('lblLoad').textContent = v + '%';
+  sendCmd({type:'control',action:'setManualValue',path:'electrical_load',value:+v});
+}
+
+function setFlow(id, on, color, rev) {
+  var el = document.getElementById('pf_' + id);
+  if (!el) return;
+  if (on) {
+    el.style.display = '';
+    el.style.stroke = color;
+    el.style.animation = (rev ? 'flowL' : 'flowR') + ' 1.2s linear infinite';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function setEl(id, prop, val) {
+  var el = document.getElementById(id);
+  if (el) el[prop] = val;
+}
+function setStyle(id, prop, val) {
+  var el = document.getElementById(id);
+  if (el) el.style[prop] = val;
+}
+function setAttr(id, attr, val) {
+  var el = document.getElementById(id);
+  if (el) el.setAttribute(attr, val);
+}
+function setStroke(id, color) {
+  var el = document.getElementById(id);
+  if (el) el.style.stroke = color;
+}
+
+function render(s) {
+  if (!s) return;
+  var b = s.boiler, p = s.pump, f = s.filter, sv = s.steam_valve;
+  var eng = s.steam_engine, ft = s.feed_tank, bat = s.battery;
+  var waterFlow = p.running && !p.fault;
+  var steamFlow = sv.open && b.pressure >= 8;
+  var condFlow  = steamFlow || (eng.power_output > 0.01);
+
+  document.getElementById('tick').textContent = 'tick ' + s.tick;
+
+  // Mode
+  var manual = s.mode === 'MANUAL';
+  setEl('modeBadge', 'textContent', s.mode);
+  setStyle('modeBadgeBg', 'fill', manual ? '#92400e' : '#166534');
+  document.getElementById('btnAuto').className   = 'ctrl ' + (manual ? '' : 'mode-auto');
+  document.getElementById('btnManual').className = 'ctrl ' + (manual ? 'mode-man' : '');
+  document.getElementById('btnPump').disabled    = !manual;
+  document.getElementById('btnValve').disabled   = !manual;
+  document.getElementById('slHeater').disabled   = !manual;
+  if (!document.getElementById('slHeater').matches(':active')) document.getElementById('slHeater').value = b.heater_power;
+  document.getElementById('lblHeater').textContent = b.heater_power.toFixed(0) + '%';
+  if (!document.getElementById('slLoad').matches(':active')) document.getElementById('slLoad').value = s.electrical_load;
+  document.getElementById('lblLoad').textContent = s.electrical_load.toFixed(0) + '%';
+
+  // Flows
+  setFlow('ft_pump',    waterFlow, C.water, false);
+  setFlow('pump_filt',  waterFlow, C.water, false);
+  setFlow('filt_boiler',waterFlow, C.water, false);
+  setFlow('boil_prv',   b.relief_open, C.steam, false);
+  setFlow('boil_sv',    steamFlow, C.steam, false);
+  setFlow('sv_eng',     steamFlow, C.steam, false);
+  setFlow('eng_cond',   condFlow,  C.cond,  true);
+  setFlow('cond_ft',    condFlow,  C.cond,  true);
+  setFlow('eng_bat',    eng.rpm > 100, C.elec, false);
+
+  // Feed tank
+  var ftH = Math.max(0, Math.min(124, ft.level_pct / 100 * 124));
+  setAttr('ft_fill', 'y', 346 - ftH);
+  setAttr('ft_fill', 'height', ftH);
+  setEl('ft_lvl', 'textContent', ft.level_pct.toFixed(0) + '%');
+
+  // Pump
+  var pc = p.fault ? C.crit : p.running ? C.ok : C.dim;
+  ['pump_ring','pump_b0','pump_b1','pump_b2','pump_b3','pump_b4','pump_b5'].forEach(function(id){ setStroke(id, pc); });
+  var hub = document.getElementById('pump_hub'); if(hub){ hub.style.stroke=pc; hub.style.fill=pc; }
+  document.getElementById('btnPump').textContent = p.fault ? 'FAULT' : (p.running ? 'Pump ON' : 'Pump OFF');
+  document.getElementById('btnPump').className   = 'ctrl ' + (p.fault ? 'crit' : p.running ? 'on' : '');
+
+  // Filter
+  var fc = f.health < 15 ? C.crit : f.health < 30 ? C.warn : C.ok;
+  setStyle('filt_body', 'stroke', fc);
+  ['fl1','fl2','fl3'].forEach(function(id){ setStroke(id, fc); });
+  setStyle('filt_pct', 'fill', fc);
+  setEl('filt_pct', 'textContent', f.health.toFixed(0) + '%');
+
+  // Boiler
+  var presCol = b.pressure > 15 ? C.crit : b.pressure > 12 ? C.warn : C.info;
+  var bfH = Math.max(0, Math.min(120, b.level_pct / 100 * 120));
+  setAttr('boil_fill', 'y', 328 - bfH);
+  setAttr('boil_fill', 'height', bfH);
+  setEl('boil_pres', 'textContent', b.pressure.toFixed(1));
+  setStyle('boil_pres', 'fill', presCol);
+  setEl('boil_lvl', 'textContent', b.level_pct.toFixed(0) + '%');
+  setStyle('boil_body',   'stroke', b.heater_fault ? C.crit : '#475569');
+  setStyle('boil_heater', 'stroke', b.heater_fault ? C.crit : C.heat);
+  setStyle('prv_dot', 'opacity', b.relief_open ? '0.9' : '0');
+  setStyle('prv_body', 'fill',   b.relief_open ? C.crit : '#1e293b');
+  setStyle('prv_body', 'stroke', b.relief_open ? C.crit : '#475569');
+
+  // Steam valve
+  var svc = sv.stuck ? C.crit : sv.open ? C.ok : '#475569';
+  setStyle('sv_ring', 'stroke', svc);
+  setStyle('sv_disc', 'stroke', svc);
+  setStyle('sv_disc', 'strokeWidth', sv.open ? '1' : '3');
+  setEl('sv_stuck', 'textContent', sv.stuck ? 'STUCK' : '');
+  document.getElementById('btnValve').textContent = sv.stuck ? 'STUCK' : (sv.open ? 'Valve OPEN' : 'Valve SHUT');
+  document.getElementById('btnValve').className   = 'ctrl ' + (sv.stuck ? 'crit' : sv.open ? 'on' : '');
+
+  // Engine
+  var ec = eng.jammed ? C.crit : eng.rpm > 100 ? C.ok : '#475569';
+  setStyle('eng_body', 'stroke', ec);
+  for (var i = 0; i < 8; i++) setStroke('eng_f' + i, ec);
+  setStyle('eng_hub', 'fill', ec);
+  setEl('eng_rpm', 'textContent', eng.rpm.toFixed(0) + ' RPM');
+  setStyle('eng_rpm', 'fill', ec);
+
+  // Battery
+  var bc = bat.depleted ? C.crit : bat.charge > 20 ? C.ok : C.warn;
+  var bth = Math.max(0, Math.min(106, bat.charge / 100 * 106));
+  setAttr('bat_fill', 'y', 296 - bth);
+  setAttr('bat_fill', 'height', bth);
+  setStyle('bat_fill', 'fill', bc);
+  setStyle('bat_body', 'stroke', bc);
+  setEl('bat_pct', 'textContent', bat.charge.toFixed(0) + '%');
+
+  // Flow labels
+  var fl = document.getElementById('lbl_flow');
+  if(fl){ fl.textContent = p.flow_rate.toFixed(0)+' L/min'; fl.style.opacity = waterFlow?'0.9':'0'; }
+  var kl = document.getElementById('lbl_kw');
+  if(kl){ kl.textContent = eng.power_output.toFixed(2)+' kW'; kl.style.opacity = eng.rpm>100?'0.9':'0'; }
+
+  // Alarm badge
+  var na = (s.alarms||[]).filter(function(a){ return a.active; }).length;
+  var ab = document.getElementById('alarmBadgeBg');
+  var at = document.getElementById('alarmBadgeTxt');
+  if(ab) ab.style.opacity = na>0?'1':'0';
+  if(at){ at.style.opacity = na>0?'1':'0'; at.textContent = na + ' alarm' + (na!==1?'s':''); }
+
+  // Alarm strip
+  var strip = document.getElementById('alarmStrip');
+  var active = (s.alarms||[]).filter(function(a){ return a.active; });
+  if (active.length === 0) {
+    strip.innerHTML = '<div class="aok">No active alarms - plant normal</div>';
+  } else {
+    strip.innerHTML = active.map(function(a){
+      return '<div class="'+(a.severity==='CRITICAL'?'acrit':'awarn')+'">'+a.message+'</div>';
+    }).join('');
+  }
+
+  // Status panel
+  function sr(id, val, color) {
+    var el = document.getElementById(id); if(!el) return;
+    el.textContent = val; if(color) el.style.color = color;
+  }
+  sr('s_pressure', b.pressure.toFixed(2)+' bar', presCol);
+  sr('s_temp',  b.temperature.toFixed(0)+'C');
+  sr('s_level', b.level_pct.toFixed(1)+'%');
+  sr('s_heater',b.heater_power.toFixed(0)+'%', C.heat);
+  sr('s_relief',b.relief_open?'OPEN':'CLOSED', b.relief_open?C.crit:C.ok);
+  sr('s_ft',    ft.level_pct.toFixed(1)+'%');
+  sr('s_ftvol', ft.volume.toFixed(0)+' L');
+  sr('s_pump',  p.fault?'FAULT':(p.running?'RUNNING':'STOPPED'), p.fault?C.crit:p.running?C.ok:'#64748b');
+  sr('s_flow',  p.flow_rate.toFixed(0)+' L/min');
+  sr('s_filt',  f.health.toFixed(1)+'%', f.health<20?C.crit:f.health<40?C.warn:C.ok);
+  sr('s_sv',    sv.stuck?'STUCK':(sv.open?'OPEN':'CLOSED'), sv.stuck?C.crit:sv.open?C.info:'#64748b');
+  sr('s_rpm',   eng.rpm.toFixed(0)+' RPM');
+  sr('s_kw',    eng.power_output.toFixed(2)+' kW');
+  sr('s_bat',   bat.charge.toFixed(1)+'%', bat.depleted?C.crit:bat.charge<20?C.warn:C.ok);
+  sr('s_load',  s.electrical_load.toFixed(0)+'%');
+
+  // Sparklines
+  drawSpark('sp_pressure', s.trends.pressure, '#38bdf8', 0, 20);
+  drawSpark('sp_level',    s.trends.level,    '#3b82f6', 0, 100);
+  drawSpark('sp_rpm',      s.trends.rpm,      '#4ade80', 0, 3000);
+  drawSpark('sp_filter',   s.trends.filter_health, '#f59e0b', 0, 100);
+  var tr = s.trends;
+  if(tr.pressure.length) document.getElementById('sv_pressure').textContent = tr.pressure[tr.pressure.length-1].toFixed(1)+' bar';
+  if(tr.level.length)    document.getElementById('sv_level').textContent    = tr.level[tr.level.length-1].toFixed(0)+'%';
+  if(tr.rpm.length)      document.getElementById('sv_rpm').textContent      = tr.rpm[tr.rpm.length-1].toFixed(0);
+  if(tr.filter_health.length) document.getElementById('sv_filter').textContent = tr.filter_health[tr.filter_health.length-1].toFixed(0)+'%';
+
+  // Terminal
+  var evts = (s.events||[]).slice().reverse().slice(0,40);
+  var catC = {ALARM:C.crit, FAULT:C.warn, OPERATOR:C.info, PROCESS:C.ok};
+  var term = document.getElementById('terminal');
+  term.innerHTML = '<div style="font-size:10px;color:#334155;margin-bottom:4px">EVENT LOG</div>' +
+    evts.map(function(e){
+      var t = new Date(e.timestamp*1000);
+      var ts = ('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2)+':'+('0'+t.getSeconds()).slice(-2);
+      return '<div class="evt"><span class="ts">'+ts+'</span><span class="cat" style="color:'+(catC[e.category]||'#94a3b8')+'">['+e.category+']</span><span>'+e.message+'</span></div>';
+    }).join('');
+}
+
+function drawSpark(id, data, color, lo, hi) {
+  var svg = document.getElementById(id);
+  if (!svg || data.length < 2) return;
+  var W=220, H=60, pad=4, w=W-pad*2, h=H-pad*2;
+  var range = (hi - lo) || 1;
+  var pts = data.map(function(v,i){
+    return (pad + i/(data.length-1)*w).toFixed(1) + ',' + (pad + h - (v-lo)/range*h).toFixed(1);
+  }).join(' ');
+  var cur = data[data.length-1];
+  var cx = (pad+w).toFixed(1), cy = (pad + h - (cur-lo)/range*h).toFixed(1);
+  svg.innerHTML =
+    '<line x1="'+pad+'" x2="'+(W-pad)+'" y1="'+(pad+h*.25)+'" y2="'+(pad+h*.25)+'" stroke="#1e293b" stroke-width="1"/>'+
+    '<line x1="'+pad+'" x2="'+(W-pad)+'" y1="'+(pad+h*.5)+'"  y2="'+(pad+h*.5)+'"  stroke="#1e293b" stroke-width="1"/>'+
+    '<line x1="'+pad+'" x2="'+(W-pad)+'" y1="'+(pad+h*.75)+'" y2="'+(pad+h*.75)+'" stroke="#1e293b" stroke-width="1"/>'+
+    '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="'+color+'"/>';
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.tabpanel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'historian') loadHistorian();
+  if (name === 'erp') loadErp();
+}
+
+var _histTab = 'process';
+function showHistTab(t, btn) {
+  _histTab = t;
+  document.querySelectorAll('.hist-tab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  document.getElementById('hist-process').style.display = t==='process' ? '' : 'none';
+  document.getElementById('hist-alarms').style.display  = t==='alarms'  ? '' : 'none';
+}
+
+function loadHistorian() {
+  fetch('/api/historian?limit=50').then(function(r){ return r.json(); }).then(function(rows){
+    document.getElementById('histCount').textContent = rows.length + ' samples';
+    var fmt = function(ts){ return new Date(ts*1000).toLocaleTimeString(); };
+    document.getElementById('histBody').innerHTML = rows.slice().reverse().map(function(r){
+      return '<tr style="background:'+(r.pressure>14?'#1a0f0f':'')+'">' +
+        '<td>'+fmt(r.ts)+'</td>' +
+        '<td style="color:'+(r.pressure>14?C.crit:'#e2e8f0')+'">'+(+r.pressure).toFixed(2)+'</td>' +
+        '<td>'+(+r.boiler_lvl).toFixed(1)+'</td>' +
+        '<td>'+(+r.rpm).toFixed(0)+'</td>' +
+        '<td style="color:'+(r.filter_hlth<25?C.warn:'#e2e8f0')+'">'+(+r.filter_hlth).toFixed(1)+'</td>' +
+        '<td style="color:'+(r.battery_chg<10?C.crit:'#e2e8f0')+'">'+(+r.battery_chg).toFixed(1)+'</td>' +
+        '<td>'+(+r.heater_pwr).toFixed(0)+'</td>' +
+        '<td style="color:'+(r.pump_run?C.ok:'#64748b')+'">'+(r.pump_run?'ON':'OFF')+'</td>' +
+        '<td style="color:'+(r.valve_open?'#38bdf8':'#64748b')+'">'+(r.valve_open?'OPEN':'SHUT')+'</td>' +
+        '<td>'+(+r.steam_pwr).toFixed(2)+'</td></tr>';
+    }).join('');
+  }).catch(function(){});
+  fetch('/api/alarms?limit=50').then(function(r){ return r.json(); }).then(function(rows){
+    var fmt = function(ts){ return new Date(ts*1000).toLocaleTimeString(); };
+    document.getElementById('alarmBody').innerHTML = rows.map(function(r){
+      return '<tr><td>'+fmt(r.ts)+'</td>'+
+        '<td style="color:'+(r.severity==='CRITICAL'?C.crit:C.warn)+';font-weight:bold">'+r.severity+'</td>'+
+        '<td>'+r.alarm_id+'</td><td style="color:#94a3b8">'+r.message+'</td></tr>';
+    }).join('');
+  }).catch(function(){});
+}
+
+function setQ(q) { document.getElementById('chatIn').value = q; }
+function sendChat() {
+  var inp = document.getElementById('chatIn');
+  var msg = inp.value.trim(); if (!msg) return;
+  inp.value = '';
+  appendMsg('user', msg);
+  var loading = appendMsg('ai', 'Thinking...');
+  fetch('/api/ai/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message:msg})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    loading.lastChild.textContent = data.reply;
+  }).catch(function(){
+    loading.lastChild.textContent = 'Error: cannot reach AI endpoint.';
+  });
+}
+function appendMsg(role, text) {
+  var d = document.createElement('div'); d.className = 'msg ' + role;
+  d.innerHTML = '<div class="who">'+(role==='user'?'Operator':'AI Assistant')+'</div><div>'+text+'</div>';
+  var box = document.getElementById('chatMsgs'); box.appendChild(d);
+  box.scrollTop = box.scrollHeight; return d;
+}
+
+function loadErp() {
+  fetch('/api/erp/production').then(function(r){ return r.json(); }).then(function(d){
+    document.getElementById('erpJson').textContent = JSON.stringify(d, null, 2);
+  }).catch(function(){});
+  if (!state) return;
+  var tags = [
+    ['boiler/pressure',      state.boiler.pressure.toFixed(2)+' bar'],
+    ['boiler/level_pct',     state.boiler.level_pct.toFixed(1)+'%'],
+    ['boiler/temperature',   state.boiler.temperature.toFixed(0)+'C'],
+    ['pump/running',         state.pump.running?'1':'0'],
+    ['pump/flow_rate',       state.pump.flow_rate.toFixed(0)+' L/min'],
+    ['filter/health',        state.filter.health.toFixed(1)+'%'],
+    ['steam_engine/rpm',     state.steam_engine.rpm.toFixed(0)],
+    ['steam_engine/power_kw',state.steam_engine.power_output.toFixed(2)],
+    ['battery/charge',       state.battery.charge.toFixed(1)+'%'],
+    ['feed_tank/level_pct',  state.feed_tank.level_pct.toFixed(1)+'%'],
+  ];
+  document.getElementById('mqttTags').innerHTML = tags.map(function(t){
+    return '<div class="tag-row"><span class="topic">steam_boiler/'+t[0]+'</span><span class="tval">'+t[1]+'</span></div>';
+  }).join('');
+}
+
+setInterval(function(){ if(document.getElementById('tab-erp').classList.contains('active')) loadErp(); }, 5000);
+setInterval(function(){ if(document.getElementById('tab-historian').classList.contains('active')) loadHistorian(); }, 10000);
+</script>
+</body>
+</html>

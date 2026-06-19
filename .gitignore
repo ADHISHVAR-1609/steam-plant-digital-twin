@@ -1,0 +1,23 @@
+# secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.sqlite
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & editor
+*.log
+.claude/
